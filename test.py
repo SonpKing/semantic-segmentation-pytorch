@@ -75,7 +75,6 @@ def test(segmentation_module, loader, args):
 
 def main(args):
     torch.cuda.set_device(args.gpu_id)
-
     # Network Builders
     builder = ModelBuilder()
     net_encoder = builder.build_encoder(

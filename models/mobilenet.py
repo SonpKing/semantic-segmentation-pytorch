@@ -169,3 +169,9 @@ def load_url(url, model_dir='./pretrained', map_location=None):
         urlretrieve(url, cached_file)
     return torch.load(cached_file, map_location=map_location)
 
+if __name__ == "__main__":
+    """Testing
+    """
+    model = mobilenetv2()
+    print(model)
+

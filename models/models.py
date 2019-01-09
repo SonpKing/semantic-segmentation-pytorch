@@ -1,7 +1,7 @@
 import torch
 import torch.nn as nn
 import torchvision
-from . import resnet, resnext, mobilenet
+from . import resnet, resnext, mobilenet, shufflenetv2
 from lib.nn import SynchronizedBatchNorm2d
 
 
@@ -108,6 +108,9 @@ class ModelBuilder():
         elif arch == 'resnext101':
             orig_resnext = resnext.__dict__['resnext101'](pretrained=pretrained)
             net_encoder = Resnet(orig_resnext) # we can still use class Resnet
+        elif arch == 'shufflenetv2':
+            orig_resnext = shufflenetv2.__dict__['shufflenetv2']()
+            net_encoder = Shufflenet(orig_resnext)
         else:
             raise Exception('Architecture undefined!')
 
@@ -119,7 +122,7 @@ class ModelBuilder():
         return net_encoder
 
     def build_decoder(self, arch='ppm_deepsup',
-                      fc_dim=512, num_class=150,
+                      fc_dim=1024, num_class=150,
                       weights='', use_softmax=False):
         arch = arch.lower()
         if arch == 'c1_deepsup':
@@ -265,6 +268,63 @@ class ResnetDilated(nn.Module):
             return conv_out
         return [x]
 
+
+class Shufflenet(nn.Module):
+    def __init__(self, orig_net, dilate_scale=8):
+        super(Shufflenet, self).__init__()
+        from functools import partial
+        self.conv1=orig_net.conv1
+        self.maxpool=orig_net.maxpool
+        self.features = orig_net.features[:-1]
+        self.conv_last = orig_net.conv_last
+        self.globalpool = orig_net.globalpool
+        self.total_idx = len(self.features)
+        self.down_idx = [0, 4, 12]
+
+        if dilate_scale == 8:
+            for i in range(self.down_idx[-2], self.down_idx[-1]):
+                self.features[i].apply(
+                    partial(self._nostride_dilate, dilate=2)
+                )
+            for i in range(self.down_idx[-1], self.total_idx):
+                self.features[i].apply(
+                    partial(self._nostride_dilate, dilate=4)
+                )
+        elif dilate_scale == 16:
+            for i in range(self.down_idx[-1], self.total_idx):
+                self.features[i].apply(
+                    partial(self._nostride_dilate, dilate=2)
+                )
+
+    def _nostride_dilate(self, m, dilate):
+        classname = m.__class__.__name__
+        if classname.find('Conv') != -1:
+            # the convolution with stride
+            if m.stride == (2, 2):
+                m.stride = (1, 1)
+                if m.kernel_size == (3, 3):
+                    m.dilation = (dilate//2, dilate//2)
+                    m.padding = (dilate//2, dilate//2)
+            # other convoluions
+            else:
+                if m.kernel_size == (3, 3):
+                    m.dilation = (dilate, dilate)
+                    m.padding = (dilate, dilate)
+
+
+    def forward(self, x, return_feature_maps=False):
+        if return_feature_maps:
+            x = self.conv1(x)
+            x = self.maxpool(x)
+            conv_out = [x]
+            for i in range(self.total_idx):
+                x = self.features[i](x)
+                if i in self.down_idx:
+                    conv_out.append(x)
+            conv_out.append(x)
+            return conv_out
+        else:
+            return [self.features(x)]
 
 class MobileNetV2Dilated(nn.Module):
     def __init__(self, orig_net, dilate_scale=8):
@@ -480,6 +540,7 @@ class PPMDeepsup(nn.Module):
                 x, size=segSize, mode='bilinear', align_corners=False)
             x = nn.functional.softmax(x, dim=1)
             return x
+
 
         # deep sup
         conv4 = conv_out[-2]

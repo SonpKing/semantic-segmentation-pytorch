@@ -14,6 +14,8 @@ from models import ModelBuilder, SegmentationModule
 from utils import AverageMeter
 from lib.nn import UserScatteredDataParallel, user_scattered_collate, patch_replication_callback
 import lib.utils.data as torchdata
+# os.environ['CUDA_VISIBLE_DEVICES']='2'
+
 
 
 # train one epoch
@@ -213,15 +215,15 @@ if __name__ == '__main__':
     # Model related arguments
     parser.add_argument('--id', default='baseline',
                         help="a name for identifying the model")
-    parser.add_argument('--arch_encoder', default='resnet50dilated',
+    parser.add_argument('--arch_encoder', default='shufflenetv2',
                         help="architecture of net_encoder")
-    parser.add_argument('--arch_decoder', default='ppm_deepsup',
+    parser.add_argument('--arch_decoder', default='ppm',
                         help="architecture of net_decoder")
-    parser.add_argument('--weights_encoder', default='',
+    parser.add_argument('--weights_encoder', default='./pretrained/shufflenetv2_x1_69.402_88.374.pth.tar',#encoder_epoch_20.pth
                         help="weights to finetune net_encoder")
     parser.add_argument('--weights_decoder', default='',
                         help="weights to finetune net_decoder")
-    parser.add_argument('--fc_dim', default=2048, type=int,
+    parser.add_argument('--fc_dim', default=464, type=int,
                         help='number of features between encoder and decoder')
 
     # Path related arguments
@@ -233,7 +235,7 @@ if __name__ == '__main__':
                         default='./data/')
 
     # optimization related arguments
-    parser.add_argument('--num_gpus', default=8, type=int,
+    parser.add_argument('--num_gpus', default=2, type=int,
                         help='number of gpus to use')
     parser.add_argument('--batch_size_per_gpu', default=2, type=int,
                         help='input batch size')

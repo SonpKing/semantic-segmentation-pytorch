@@ -228,5 +228,5 @@ def load_url(url, model_dir='./pretrained', map_location=None):
     cached_file = os.path.join(model_dir, filename)
     if not os.path.exists(cached_file):
         sys.stderr.write('Downloading: "{}" to {}\n'.format(url, cached_file))
-        urlretrieve(url, cached_file)
+        # urlretrieve(url, cached_file)
     return torch.load(cached_file, map_location=map_location)
